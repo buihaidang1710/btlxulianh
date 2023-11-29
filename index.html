@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Image Converter</title>
+        <style>
+                body {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        margin: 0;
+                }
+
+                #imageContainer {
+                        display: flex;
+                        justify-content: space-around;
+                        width: 100%;
+                        margin-top: 20px;
+                }
+
+                .imagePreview {
+                        margin: 10px;
+                        display: none;
+                }
+
+                #imageForm {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        margin-top: 20px;
+                }
+
+                #file {
+                        display: none;
+                }
+
+                #conversionType {
+                        margin-top: 10px;
+                }
+
+                button {
+                        margin-top: 10px;
+                }
+
+                #convertedImage {
+                        margin-top: 20px;
+                        display: none;
+                }
+        </style>
+</head>
+
+<body>
+        <h1>Image Converter</h1>
+
+        <div id="imageContainer">
+                <div class="imagePreview" id="imagePreview1">
+                        <!-- Placeholder for image preview 1 -->
+                </div>
+
+                <div class="imagePreview" id="imagePreview2" style="display: none;">
+                        <!-- Placeholder for image preview 2 -->
+                </div>
+
+                <img id="convertedImage" style="display: none;">
+        </div>
+
+        <form id="imageForm" action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" id="file" name="file" accept="image/*" required onchange="previewImage()" >
+                <button type="button" onclick="document.getElementById('file').click()">Choose Image</button>
+                <br>
+                <label for="conversionType">Conversion Type:</label>
+                <select id="conversionType">
+                        <option value="negative">Biến đổi âm bản</option>
+                        <option value="threshold">Phân ngưỡng</option>
+                        <option value="logarithmic">Biến đổi Logarit</option>
+                        <option value="exponential">Biến đổi hàm mũ</option>
+                        <option value="histogram_equalization">Cân bằng lược đồ xám</option>
+                        <option value="weighted_averaging">Lọc trung bình có trọng số</option>
+                        <option value="median_filter">Lọc trung vị</option>
+                        <option value="roberts_operator">Toán tử Roberts</option>
+                        <option value="sobel_operator">Toán tử Sobel</option>
+                        <option value="prewitt_operator">Toán tử Prewitt</option>
+                        <option value="laplacian_operator">Toán tử Laplacian</option>
+                        <option value="canny_operator">Phương pháp Canny</option>
+                        <option value="otsu_threshold">Thuật toán Otsu</option>
+                        <option value="erosion_image">Phép co</option>
+                        <option value="dilation_image">Phép giãn</option>
+                        <option value="closing_image">Phép đóng</option>
+                        <option value="opening_image">Phép mở</option>
+                </select>
+                <br>
+                <br>
+                <button type="button" onclick="convertImage()">Convert</button>
+        </form>
+
+        <img id="convertedImage" style="display: none;">
+
+        <script>
+                function previewImage() {
+                        var fileInput = document.getElementById('file');
+                        var imagePreview1 = document.getElementById('imagePreview1');
+
+                        // Ẩn nút chọn file ảnh khi đã chọn file
+                        fileInput.style.display = 'none';
+
+                        // Hiển thị hình mới nếu người dùng đã chọn file
+                        if (fileInput.files && fileInput.files[0]) {
+                                var reader = new FileReader();
+
+                                reader.onload = function (e) {
+                                        // Hiển thị hình ảnh trong từng khung ảnh
+                                        imagePreview1.innerHTML = '';  // Xóa hình trước đó
+                                        var img1 = document.createElement('img');
+                                        img1.src = e.target.result;
+                                        img1.alt = 'Image Preview';
+                                        imagePreview1.appendChild(img1);
+                                        imagePreview1.style.display = 'block';
+                                };
+
+                                reader.readAsDataURL(fileInput.files[0]);
+                        }
+                }
+
+                function convertImage() {
+                        var imagePreview2 = document.getElementById('imagePreview2');
+                        var convertedImage = document.getElementById('convertedImage');
+                        var conversionType = document.getElementById('conversionType').value;
+
+                        // Lấy hình ảnh từ khung ảnh 1
+                        var img1 = document.getElementById('imagePreview1').querySelector('img');
+                        if (!img1) {
+                                alert('Please choose an image first.');
+                                return;
+                        }
+
+                        // Tạo hình ảnh mới từ img1
+                        var img2 = new Image();
+                        img2.src = img1.src;
+                        img2.alt = 'Converted Image';
+
+                        // Gửi yêu cầu chuyển đổi đến máy chủ
+                        var formData = new FormData();
+                        formData.append('file', dataURItoBlob(img1.src));
+                        formData.append('conversionType', conversionType);
+
+                        fetch('/upload', {
+                                method: 'POST',
+                                body: formData
+                        })
+                                .then(response => response.blob())
+                                .then(blob => {
+                                        img2.src = URL.createObjectURL(blob);
+                                        imagePreview2.innerHTML = '';  // Xóa hình trước đó
+                                        imagePreview2.style.display = 'none';  // Ẩn khung ảnh thứ hai
+
+                                        // Hiển thị hình ảnh chuyển đổi
+                                        convertedImage.src = img2.src;
+                                        convertedImage.style.display = 'block';
+                                })
+                                .catch(error => {
+                                        console.error('Error:', error);
+                                        alert('An error occurred during conversion.');
+                                });
+                }
+
+                function dataURItoBlob(dataURI) {
+                        var byteString = atob(dataURI.split(',')[1]);
+                        var ab = new ArrayBuffer(byteString.length);
+                        var ia = new Uint8Array(ab);
+                        for (var i = 0; i < byteString.length; i++) {
+                                ia[i] = byteString.charCodeAt(i);
+                        }
+                        return new Blob([ab], { type: 'image/jpeg' });
+                }
+        </script>
+</body>
+
+</html>
